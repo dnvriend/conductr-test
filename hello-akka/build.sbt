@@ -1,4 +1,4 @@
-name := "conductr-test"
+name := "hello-akka"
 
 organization := "com.github.dnvriend"
 
@@ -7,9 +7,10 @@ version := "1.0.0"
 scalaVersion := "2.11.8"
 
 libraryDependencies ++= {
-  val akkaVersion = "2.4.10"
-  val conductRLibVersion = "1.4.8"
-  val scalazVersion = "7.2.5"
+  val akkaVersion = "2.4.11"
+  // https://github.com/typesafehub/conductr-lib/releases
+  val conductRLibVersion = "1.4.12"
+  val scalazVersion = "7.2.6"
   Seq(
     "com.typesafe.akka" %% "akka-actor" % akkaVersion,
     "com.typesafe.akka" %% "akka-slf4j" % akkaVersion,
@@ -35,9 +36,9 @@ SbtScalariform.autoImport.scalariformPreferences := SbtScalariform.autoImport.sc
   .setPreference(DoubleIndentClassDeclaration, true)
 
 // start of setup conductr bundle //
-normalizedName in Bundle := "conductr-test" // the human readable name for your bundle
+normalizedName in Bundle := "hello-akka" // the human readable name for your bundle
 
-BundleKeys.system := "ConductrTest" // a common name to associate multiple bundles together
+BundleKeys.system := "HelloAkka" // a common name to associate multiple bundles together
 
 // scheduling parameters //
 import ByteConversions._
@@ -64,6 +65,12 @@ BundleKeys.startCommand += "-main com.github.dnvriend.Main" // configure what ma
 // instead at http://localhost:8080/helloworld when running eg. in SBT
 //
 // Note: the service name is: 'web'
+//
+// Endpoints are declared using an `endpoint` setting using a Map of
+// Map[EndpointName -> Endpoint(bindProtocol, bindPort, services*] declaration
+//
+// the bind port allocated for use by the bundle will be dynamically allocated
+// and an environment variable with the convention ENDPOINTNAME_BIND_PORT and ENDPOINTNAME_BIND_IP
 //
 BundleKeys.endpoints := Map(
   "helloworld" -> Endpoint("http", 0, Set(URI("http://:9000/web"))),
