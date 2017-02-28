@@ -94,8 +94,10 @@ When running with Docker for mac, you will have a whale icon at the top of your 
 The sandbox can be launched in Docker for mac with the following command:
 
 ```bash
-sandbox run 1.1.10 --feature visualization --nr-of-containers 3
+sandbox run 1.1.13 --feature visualization --nr-of-containers 3
 ```
+
+The available list of sandbox images can be found [here](https://bintray.com/typesafe/registry-for-subscribers-only/conductr%3Aconductr).
 
 This will start a conductr environment consisting of three nodes. It will also start the visualizer, which that allows you to see a visualization of the current state of the cluster, such as nodes or bundles. The visualizer is available at:
 
