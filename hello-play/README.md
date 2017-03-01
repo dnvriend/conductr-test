@@ -8,11 +8,7 @@ Sbt will introspect the project and any sub projects, generate `bundles` and the
 restart the sandbox to ensure a clean state and then load and run the application.
 You can then access your application at `http://docker-host-ip:9000`, eg. `http://localhost:9000`
 
-## conductr-bundle-lib
-[ConductR Bundle Library aka. conductr-bundle-lib](https://github.com/typesafehub/conductr-lib) provides a number of libraries to facilitate ConductR's [status service](https://github.com/typesafehub/conductr-lib#status-service) and its [service lookup service aka. LocationService](https://github.com/typesafehub/conductr-lib#location-service). [sbt-conductr](https://github.com/typesafehub/sbt-conductr) automatically adds [conductr-bundle-lib](https://github.com/typesafehub/conductr-lib) to the project as a dependency.
-
-For play v2.5, [play25-conductr-bundle-lib](https://github.com/typesafehub/conductr-lib#play25-conductr-bundle-lib) provides the following services:
-
+`
 ## Scheduling Parameters
 [Scheduling parameters](http://conductr.lightbend.com/docs/1.1.x/CreatingBundles#Producing-a-bundle) are parameters that describe what resources are used by your application or service and are used
 to determine which machine they will run on.
@@ -61,6 +57,44 @@ The following components are available for injection:
 
 ## Environment Variables
 Please read the [environment variables reference](http://conductr.lightbend.com/docs/1.1.x/BundleEnvironmentVariables#Standard-environment-variables) to review which variables are available to a bundle component at runtime.
+
+## Play akka configuration
+Play's default configuration will look for the akka configuration in the 'normal' location in the Typesafe configuration
+which is the `akka` root node as can be seen in the configuration below:
+```
+The play akka configuration is defined in the library `com.typesafe.play:play:2.5.x` in reference.conf:
+
+```
+play {
+  akka {
+      # The name of the actor system that Play creates
+      actor-system = "application"
+
+      # How long Play should wait for Akka to shutdown before timing it.  If null, waits indefinitely.
+      shutdown-timeout = null
+
+      # The location to read Play's Akka configuration from
+      config = "akka"
+
+      # The blocking IO dispatcher, used for serving files/resources from the file system or classpath.
+      blockingIoDispatcher {
+        fork-join-executor {
+          parallelism-factor = 3.0
+        }
+      }
+
+      # The dev mode actor system. Play typically uses the application actor system, however, in dev mode, an actor
+      # system is needed that outlives the application actor system, since the HTTP server will need to use this, and it
+      # lives through many application (and therefore actor system) restarts.
+      dev-mode {
+        # Turn off dead letters until Akka HTTP server is stable
+        log-dead-letters = off
+        # Disable Akka-HTTP's transparent HEAD handling. so that play's HEAD handling can take action
+        http.server.transparent-head-requests = false
+      }
+    }
+}
+```
 
 # About hello-play
 This project has been generated with Activator and contains the following:

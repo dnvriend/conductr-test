@@ -16,19 +16,25 @@
 
 package com.github.dnvriend
 
-import akka.actor.ActorSystem
+import akka.actor.Actor.Receive
+import akka.actor.{ Actor, ActorRef, ActorSystem, Props }
 import akka.event.{ Logging, LoggingAdapter }
 import akka.http.scaladsl._
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.http.scaladsl.server.{ Directives, Route }
 import akka.stream.{ ActorMaterializer, Materializer }
+import com.lightbend.cinnamon.akka.{ Tracer, TracerExtension }
 import com.typesafe.conductr.bundlelib.akka.{ Env, LocationService, StatusService }
 import com.typesafe.conductr.bundlelib.scala.{ LocationCache, URI }
 import com.typesafe.conductr.lib.akka.ConnectionContext
 import com.typesafe.config.ConfigFactory
 import spray.json.DefaultJsonProtocol
+import akka.util.Timeout
+import akka.pattern.ask
 
+import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext
+import scala.util.Random
 
 object Main extends App with SprayJsonSupport with DefaultJsonProtocol with Directives {
   // getting bundle configuration from Conductr
@@ -45,6 +51,11 @@ object Main extends App with SprayJsonSupport with DefaultJsonProtocol with Dire
   implicit val log: LoggingAdapter = Logging(system, this.getClass)
   implicit val cc = ConnectionContext()
   implicit val locationCache = LocationCache()
+  implicit val timeout: Timeout = 10.seconds
+
+  val tracer: TracerExtension = Tracer(system)
+  val fooActor = system.actorOf(Props(new FooActor(tracer, barActor)))
+  val barActor = system.actorOf(Props(new BarActor(tracer)))
 
   val httpServerCfg = system.settings.config.getConfig("helloworld")
   val configuredIpAddress = httpServerCfg.getString("ip")
@@ -59,7 +70,13 @@ object Main extends App with SprayJsonSupport with DefaultJsonProtocol with Dire
   implicit val helloWorldJsonFormat = jsonFormat1(HelloWorldResponse)
   implicit val personJsonFormat = jsonFormat2(Person)
 
-  def completeWithHello = extractMethod(method => complete(HelloWorldResponse(s"${method.value} Hello World!")))
+  def completeWithHello = extractMethod { method =>
+    complete {
+      (fooActor ? "Hello").mapTo[String].map { response =>
+        HelloWorldResponse(s"${method.value} $response")
+      }
+    }
+  }
 
   def queryServiceLocator(serviceName: String = "web") =
     LocationService.lookup(serviceName, URI("http://localhost:8080/"), locationCache)
@@ -92,9 +109,48 @@ object Main extends App with SprayJsonSupport with DefaultJsonProtocol with Dire
   (for {
     _ <- Http().bindAndHandle(route, interface = configuredIpAddress, port = configuredPort)
     _ <- StatusService.signalStartedOrExit()
-  } yield ()).recover {
+  } yield ()).recoverWith {
     case cause: Throwable =>
       log.error(cause, "Failure while launching HelloWorld")
       StatusService.signalStartedOrExit()
+      system.terminate()
+  }
+}
+
+class FooActor(tracer: TracerExtension, barActor: ActorRef) extends Actor {
+  override def receive: Receive = {
+    case msg =>
+      tracer.start("foo-request") {
+        barActor ! "Hello"
+        context.become(waitingForResponse(msg, sender()))
+      }
+  }
+
+  def waitingForResponse(theMsg: Any, respondTo: ActorRef): Receive = {
+    case msg =>
+      context.become(receive)
+      Util.sleep()
+      tracer.end("bar-response")
+      respondTo ! s"$theMsg $msg"
+  }
+
+}
+
+class BarActor(tracer: TracerExtension) extends Actor {
+  override def receive: Receive = {
+    case _ =>
+      tracer.end("foo-request")
+      tracer.start("bar-response") {
+        Util.sleep()
+        sender() ! "World!!"
+      }
+  }
+}
+
+object Util {
+  def sleep(): Unit = {
+    val millis = Random.nextInt(500)
+    println(s"Sleeping for: $millis millis")
+    Thread.sleep(millis)
   }
 }

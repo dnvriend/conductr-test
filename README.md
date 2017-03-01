@@ -5,6 +5,34 @@ Conductr can be used for free for __development purposes only__ and for that rea
 
 Conductr doesn't need Docker at all, it _can_, but it isn't a requirement. Running the sandbox is for development and trying out purposes only. When used in production it is __required__ to have a [Lightbend Subscription](https://www.lightbend.com/platform/subscription).
 
+## ConductR v2.x.x
+[ConductR v2.0.x](http://conductr.lightbend.com/docs/2.0.x/) is being released.
+
+The difference between ConductR v1 and v2 is that ConductR now consists of `conductr-core` and `conductr-agent`.
+Conductr-core and conductr-agent run as separate processes and are separate services
+
+### ConductR Core
+ConductR core provides cluster and application information as well as its control interface via the REST API.
+ConductR core is responsible for cluster-wide scaling and replication decisions as well as hosting the application
+files or the bundles. By default, `conductr-core` exposes its Control REST interface at port `9005`.
+
+By default, the `conductr-core` service runs under the `conductr` user along with the `conductr` group. Its pid file
+is written to `/var/run/conductr/running.pid` and its install location is `/usr/share/conductr`.
+
+### ConductR Agent
+The ConductR agent is responsible for executing the application process. By default, the `conductr-agent` runs under the
+`conductr-agent` user along with the `conductr-agent` group. Its pud file is written to `/var/run/conductr-agent/running.pid`
+and its install location is `/usr/share/conductr-agent`.
+
+### Seed node
+The first `conductr-core` process that runs on a machine is called the `seed` node, and is the initial contact point
+for all other `conductr-core` nodes that need to join the cluster. So all new `conductr-core` processes will need
+a `--seed` configuration set. Afterwards new nodes can join
+
+## DC/OS
+ConductR can run as a Framework within DC/OS. A Mesos framework receives resource offers and decides whether to accept these
+resources and schedule work on them, or to decline the resource offer.
+
 ## What is conductr?
 1. Clustered Akka application with special features:
 - haproxy for location transparency (your apps can resolve other apps through ConductR API)
@@ -60,6 +88,9 @@ components = {
   }
 }
 ```
+
+## Conductr v1.x.x
+The following is for ConductR v1.x.x
 
 ## Installing Conductr
 1. You'll have to install [Python 3](https://www.python.org/downloads/mac-osx/), so install it on your system because the Conductr
@@ -167,6 +198,84 @@ If you need these env properties passed in to your app's main as args, use the s
 ```scala
 BundleKeys.startCommand += "-Dhttp.address=$SINGLEMICRO_BIND_IP -Dhttp.port=$SINGLEMICRO_BIND_PORT"
 ```
+
+## Conductr Ports
+Conductr uses the following ports on each node:
+
+- 9004: Akka remoting
+- 9005: REST Control API
+- 9006: Bundle streaming between ConductR nodes
+- 10000 - 10999: default range of ports allocated for bundle endpoints
+
+## Control API
+Conductr (core) exposes a control API, which is a REST interface that exposes [the following functionality](http://conductr.lightbend.com/docs/2.0.x/ControlAPI):
+
+__Bundle API:__
+- load a bundle
+- scale a bundle
+- unload a bundle
+- query bundle state
+- query logs by bundle
+- query events by bundle
+
+__Cluster Membership API:__
+- query membership state
+
+The Control API is available at port `9005` by default and can be queried eg. the sandbox with:
+
+```bash
+$ http :9005/v2/members
+
+HTTP/1.1 200 OK
+Content-Length: 109
+Content-Type: application/json
+Date: Wed, 26 Oct 2016 16:48:53 GMT
+Server: akka-http/2.4.10
+
+{
+    "members": [],
+    "selfNode": {
+        "address": "akka.tcp://conductr@172.17.0.2:9004",
+        "uid": -918763336
+    },
+    "unreachable": []
+}
+
+$ http :9015/v2/members
+
+HTTP/1.1 200 OK
+Content-Length: 108
+Content-Type: application/json
+Date: Wed, 26 Oct 2016 16:54:21 GMT
+Server: akka-http/2.4.10
+
+{
+    "members": [],
+    "selfNode": {
+        "address": "akka.tcp://conductr@172.17.0.3:9004",
+        "uid": 587595788
+    },
+    "unreachable": []
+}
+
+$ http :9025/v2/members
+
+HTTP/1.1 200 OK
+Content-Length: 109
+Content-Type: application/json
+Date: Wed, 26 Oct 2016 16:54:03 GMT
+Server: akka-http/2.4.10
+
+{
+    "members": [],
+    "selfNode": {
+        "address": "akka.tcp://conductr@172.17.0.4:9004",
+        "uid": -463293053
+    },
+    "unreachable": []
+}
+```
+
 
 ## Conductr Manual
 You should read the [Conductr manual](https://conductr.lightbend.com/docs/1.1.x/Home) to get confortable with the Conductr concepts (the terms and such) so you know what a bundle is, which CLI and SBT tools there are and which commands to use to do a certain thing. The manual is great, so go and read!
